@@ -22,6 +22,7 @@
 | `03_deploy_neo4j.cypher` | 6·8 | Neo4j/neosemantics 이관 |
 | `04_sparql_client.py` · `fuseki_config.ttl` · `05_Fuseki_배포가이드.md` | 8 | Fuseki SPARQL 엔드포인트 배포 |
 | `06_Protege_실습가이드.md` | 6·7 | Protégé GUI 실습 |
+| `온톨로지_8단계_파일별_설명.pptx` | 전체 | 파일별 단계 설명 발표자료 (14장) |
 
 ### 실행
 

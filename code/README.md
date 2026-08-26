@@ -23,6 +23,7 @@
 | `fuseki_config.ttl` | **8** | Fuseki 서비스 설정 (OWL 추론기 ON) |
 | `05_Fuseki_배포가이드.md` | **8** | Apache Jena Fuseki 실전 배포 가이드 |
 | `06_Protege_실습가이드.md` | **6·7** | Protégé GUI로 열기·편집·추론 실습 |
+| `온톨로지_8단계_파일별_설명.pptx` | **전체** | 파일별 단계 설명 발표자료 (14장) |
 | `requirements.txt` | — | 의존성 (rdflib, owlrl) |
 
 > 온톨로지는 **법령 도메인**(조-항-호·준용·위임·집행)을 기본으로,
