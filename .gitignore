@@ -1,0 +1,4 @@
+*.pdf
+__pycache__/
+*.pyc
+code/maritime_ontology_generated.ttl

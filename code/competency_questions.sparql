@@ -1,0 +1,82 @@
+# =============================================================
+#  역량 질문 (Competency Questions) — SPARQL
+#  단계 2에서 정의한 "온톨로지가 답해야 할 질문"을 실제 질의로 구현
+#  단계 7(검증)에서 이 질의들의 응답 가능 여부로 완전성을 평가한다.
+#  ※ CQ3~CQ7 · CQ10 은 추론(reasoning) 후에만 완전한 답을 반환한다.
+# =============================================================
+
+PREFIX : <http://maritime-kg.example.org/ontology/maritime#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+# --- CQ1) 부산항에 입항한 선박과 그 명칭은? ---
+SELECT ?vessel ?name WHERE {
+    ?vessel :hasPortCall ?pc ;
+            :hasName ?name .
+    ?pc :atPort :BusanPort .
+}
+
+# --- CQ2) 유조선 중 총톤수 5,000 이상인 선박은? ---
+SELECT ?name ?gt WHERE {
+    ?v :hasVesselType :T_Tanker ;
+       :hasGrossTonnage ?gt ;
+       :hasName ?name .
+    FILTER (?gt >= 5000)
+}
+ORDER BY DESC(?gt)
+
+# --- CQ3) [추론] '제15조제1항제3호'가 속한 모든 상위 단위(항·조·법령)는? ---
+#     isPartOf 가 이행적(TransitiveProperty)이므로
+#     제3호 → 제1항 → 제15조 → 해상교통안전법 이 자동 도출된다.
+SELECT ?unit WHERE {
+    :Art15_P1_I3 :isPartOf ?unit .
+}
+
+# --- CQ4) [추론] '부산신항 제3선석'이 위치한 모든 상위 지역(항만·국가)은? ---
+#     isLocatedIn 이 이행적이므로 부산항, 대한민국까지 도출된다.
+SELECT ?place WHERE {
+    :BusanNewPort_B3 :isLocatedIn ?place .
+}
+
+# --- CQ5) [추론] 해양수산부가 집행하는 조문은? (역 속성 enforces) ---
+#     enforcedBy owl:inverseOf enforces 이므로
+#     :Art15 :enforcedBy :MOF 로부터 :MOF :enforces :Art15 가 도출된다.
+SELECT ?article WHERE {
+    :MOF :enforces ?article .
+}
+
+# --- CQ6) [추론] '진해만 해역'과 인접한 해역은? (대칭 속성 isAdjacentTo) ---
+#     :BusanSeaArea :isAdjacentTo :JinhaeBaySeaArea 로부터 역방향이 도출된다.
+SELECT ?adjacent WHERE {
+    :JinhaeBaySeaArea :isAdjacentTo ?adjacent .
+}
+
+# --- CQ7) [추론] '제43조'가 참조하는 모든 조문은? (하위 속성 + 이행성) ---
+#     junyongOf rdfs:subPropertyOf refersTo 이고 junyongOf 는 이행적이므로
+#     제43조 → 제15조 → 제10조 가 모두 refersTo 로 도출된다.
+SELECT ?target WHERE {
+    :Art43 :refersTo ?target .
+}
+
+# --- CQ8) [운항] 격자 셀 '35.0N 129.0E'에서 관측된 선박은? ---
+SELECT ?name WHERE {
+    ?v :reportedPosition ?pos ;
+       :hasName ?name .
+    ?pos :inCell :G_35N_129E .
+}
+
+# --- CQ9) [운항·추론] 'HL PIONEER'가 접안한 선석이 위치한 모든 지역은? ---
+SELECT ?place WHERE {
+    :HL_PIONEER :hasPortCall ?pc .
+    ?pc :atBerth ?berth .
+    ?berth :isLocatedIn ?place .
+}
+
+# --- CQ10) [추론·핵심] '제43조' 위반 시 적용되는 벌칙 조문은? ---
+#     제43조 --준용--> 제15조 --준용--> 제10조 이고
+#     제83조가 제15조를, 제90조가 제10조를 처벌한다.
+#     junyongOf 를 이행적으로 선언하지 않으면 제90조가 누락된다.
+SELECT ?penalty ?no WHERE {
+    :Art43 :junyongOf ?target .
+    ?penalty :penalizes ?target ;
+             :hasArticleNo ?no .
+}

@@ -1,0 +1,37 @@
+# =============================================================
+#  [단계 8] Apache Jena Fuseki 서비스 설정 (Assembler)
+#  OWL 추론기(OWLFBRuleReasoner)를 켠 상태로 해사 온톨로지를 서비스한다.
+#  → SPARQL 질의 시 이행·역·대칭·하위 속성이 서버에서 자동 추론된다.
+#
+#  실행:  fuseki-server --config=fuseki_config.ttl
+#  질의 엔드포인트:  http://localhost:3030/maritime/sparql
+# =============================================================
+
+@prefix fuseki:  <http://jena.apache.org/fuseki#> .
+@prefix ja:      <http://jena.hpl.hp.com/2005/11/Assembler#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix :        <#> .
+
+# ---- 서비스 정의 ----
+:service a fuseki:Service ;
+    fuseki:name "maritime" ;                              # /maritime 로 접근
+    fuseki:endpoint [ fuseki:operation fuseki:query  ] ;   # SPARQL 조회
+    fuseki:endpoint [ fuseki:operation fuseki:update ] ;   # SPARQL 갱신
+    fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ] ;   # 그래프 업로드
+    fuseki:dataset :dataset .
+
+# ---- 추론 데이터셋 (InfModel) ----
+:dataset a ja:RDFDataset ;
+    ja:defaultGraph :inferenceModel .
+
+:inferenceModel a ja:InfModel ;
+    ja:baseModel :baseModel ;
+    ja:reasoner [
+        # OWL 규칙 기반 추론기 — 이행/역/대칭/함수/하위 속성 지원
+        ja:reasonerURL <http://jena.hpl.hp.com/2003/OWLFBRuleReasoner>
+    ] .
+
+# ---- 원본 온톨로지 로드 (경로는 환경에 맞게 수정) ----
+:baseModel a ja:MemoryModel ;
+    ja:content [ ja:externalContent <file:///maritime_ontology.ttl> ] .

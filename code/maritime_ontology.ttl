@@ -1,0 +1,399 @@
+# =============================================================
+#  해사 서비스 온톨로지 (Maritime Service Ontology)
+#  『지식그래프: AI와 온톨로지로 여는 지식혁명』 3장 8단계 방법론 구현
+#   - 단계 4: 클래스 및 속성 정의
+#   - 단계 5: 관계 정의 (논리적 특성 · 카디널리티)
+#   - 단계 6: 표현 및 구현 (OWL2 / Turtle)
+#  형식: OWL2 · Turtle 구문
+#
+#  도메인: 해사법령(조-항-호 · 준용 · 위임 · 집행) + 운항데이터(AIS · 입출항 · 격자)
+#  ※ ABox의 조문 번호·내용·선박 제원은 방법론 시연용 예시값이다.
+# =============================================================
+
+@prefix :     <http://maritime-kg.example.org/ontology/maritime#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+<http://maritime-kg.example.org/ontology/maritime>
+    a owl:Ontology ;
+    rdfs:label "해사 서비스 온톨로지" ;
+    owl:versionInfo "1.0.0" .
+
+# -------------------------------------------------------------
+# [단계 4] 클래스 정의 (owl:Class) + 계층 구조 (rdfs:subClassOf)
+# -------------------------------------------------------------
+
+# --- 법령 도메인 ---
+:Regulation  a owl:Class ; rdfs:label "법령" .
+:Act         a owl:Class ; rdfs:subClassOf :Regulation ; rdfs:label "법률" .
+:Decree      a owl:Class ; rdfs:subClassOf :Regulation ; rdfs:label "시행령" .
+:Ordinance   a owl:Class ; rdfs:subClassOf :Regulation ; rdfs:label "시행규칙" .
+
+:LegalUnit   a owl:Class ; rdfs:label "법령 단위" .
+:Article     a owl:Class ; rdfs:subClassOf :LegalUnit ; rdfs:label "조" .
+:Paragraph   a owl:Class ; rdfs:subClassOf :LegalUnit ; rdfs:label "항" .
+:Item        a owl:Class ; rdfs:subClassOf :LegalUnit ; rdfs:label "호" .
+
+:Term         a owl:Class ; rdfs:label "정의어" .
+:Organization a owl:Class ; rdfs:label "기관" .
+
+# --- 장소 도메인 (isLocatedIn 의 정의역/치역) ---
+:Place    a owl:Class ; rdfs:label "장소" .
+:Berth    a owl:Class ; rdfs:subClassOf :Place ; rdfs:label "선석" .
+:Port     a owl:Class ; rdfs:subClassOf :Place ; rdfs:label "항만" .
+:SeaArea  a owl:Class ; rdfs:subClassOf :Place ; rdfs:label "해역" .
+:Country  a owl:Class ; rdfs:subClassOf :Place ; rdfs:label "국가" .
+
+# --- 선박 도메인 ---
+:Vessel        a owl:Class ; rdfs:label "선박" .
+:CargoShip     a owl:Class ; rdfs:subClassOf :Vessel ; rdfs:label "화물선" .
+:PassengerShip a owl:Class ; rdfs:subClassOf :Vessel ; rdfs:label "여객선" .
+:Tanker        a owl:Class ; rdfs:subClassOf :Vessel ; rdfs:label "유조선" .
+:FishingVessel a owl:Class ; rdfs:subClassOf :Vessel ; rdfs:label "어선" .
+
+:VesselType  a owl:Class ; rdfs:label "선종 코드" .   # AIS ShipType 코드 목록
+:Certificate a owl:Class ; rdfs:label "검사증서" .
+
+# -------------------------------------------------------------
+# [단계 4] 데이터 속성 (owl:DatatypeProperty) — domain / range
+# -------------------------------------------------------------
+
+:hasName a owl:DatatypeProperty ;
+    rdfs:label "명칭" ;
+    rdfs:range xsd:string .
+
+:effectiveDate a owl:DatatypeProperty ;
+    rdfs:label "시행일" ;
+    rdfs:domain :Regulation ; rdfs:range xsd:date .
+
+:hasArticleNo a owl:DatatypeProperty ;
+    rdfs:label "조문 번호" ;
+    rdfs:domain :LegalUnit ; rdfs:range xsd:string .
+
+:hasProviso a owl:DatatypeProperty ;
+    rdfs:label "단서" ;
+    rdfs:domain :LegalUnit ; rdfs:range xsd:string .
+
+:hasMmsi a owl:DatatypeProperty ;
+    rdfs:label "MMSI" ;
+    rdfs:domain :Vessel ; rdfs:range xsd:string .
+
+:hasImoNumber a owl:DatatypeProperty ;
+    rdfs:label "IMO 번호" ;
+    rdfs:domain :Vessel ; rdfs:range xsd:string .
+
+:hasGrossTonnage a owl:DatatypeProperty ;
+    rdfs:label "총톤수(GT)" ;
+    rdfs:domain :Vessel ; rdfs:range xsd:decimal .
+
+:issuedDate a owl:DatatypeProperty ;
+    rdfs:label "증서 발급일" ;
+    rdfs:domain :Certificate ; rdfs:range xsd:date .
+
+# -------------------------------------------------------------
+# [단계 4·5] 객체 속성 (owl:ObjectProperty) + 논리적 특성
+# -------------------------------------------------------------
+
+# 기본 객체 속성
+:hasVesselType a owl:ObjectProperty ;
+    rdfs:label "선종" ;
+    rdfs:domain :Vessel ; rdfs:range :VesselType .
+
+:hasCertificate a owl:ObjectProperty ;
+    rdfs:label "보유 증서" ;
+    rdfs:domain :Vessel ; rdfs:range :Certificate .
+
+:definesTerm a owl:ObjectProperty ;
+    rdfs:label "정의 조문" ;
+    rdfs:domain :LegalUnit ; rdfs:range :Term .
+
+:delegatesTo a owl:ObjectProperty ;
+    rdfs:label "위임" ;
+    rdfs:domain :LegalUnit ; rdfs:range :Regulation .
+
+:appliesTo a owl:ObjectProperty ;
+    rdfs:label "적용 대상 선종" ;
+    rdfs:domain :LegalUnit ; rdfs:range :VesselType .
+
+:penalizes a owl:ObjectProperty ;
+    rdfs:label "벌칙 대상 조문" ;
+    rdfs:domain :Article ; rdfs:range :Article .
+
+# (단계 5) 함수적 속성 — 한 선박은 하나의 기국만 가짐
+:hasFlagState a owl:ObjectProperty, owl:FunctionalProperty ;
+    rdfs:label "기국" ;
+    rdfs:domain :Vessel ; rdfs:range :Country .
+
+# (단계 5) 역 속성 — enforcedBy 의 역은 enforces
+:enforcedBy a owl:ObjectProperty ;
+    rdfs:label "집행 기관" ;
+    rdfs:domain :LegalUnit ; rdfs:range :Organization ;
+    owl:inverseOf :enforces .
+
+:enforces a owl:ObjectProperty ;
+    rdfs:label "집행 조문" ;
+    rdfs:domain :Organization ; rdfs:range :LegalUnit .
+
+# (단계 5) 이행적 속성 — 장소 포함 관계 (선석→항만→국가)
+:isLocatedIn a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:label "위치" ;
+    rdfs:domain :Place ; rdfs:range :Place .
+
+# (단계 5) 이행적 속성 — 법령 계층 소속 (호→항→조→법령)
+:isPartOf a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:label "소속" .
+
+# (단계 5) 대칭적 속성 — 해역 인접 관계
+:isAdjacentTo a owl:ObjectProperty, owl:SymmetricProperty ;
+    rdfs:label "인접 해역" ;
+    rdfs:domain :SeaArea ; rdfs:range :SeaArea .
+
+# (단계 5) 상위 속성 — 조문 간 참조
+:refersTo a owl:ObjectProperty ;
+    rdfs:label "조문 참조" ;
+    rdfs:domain :LegalUnit ; rdfs:range :LegalUnit .
+
+# (단계 5) 하위 속성 + 이행적 — 준용(準用)
+#   속성그래프의 refType="준용" 간선 속성을, RDF에서는 하위 속성으로 모델링한다.
+#   준용은 연쇄되므로(A준용B, B준용C ⇒ A준용C) 이행적으로 선언해야
+#   벌칙 경로 추적이 중간에 끊기지 않는다.
+:junyongOf a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:subPropertyOf :refersTo ;
+    rdfs:label "준용" ;
+    rdfs:domain :LegalUnit ; rdfs:range :LegalUnit .
+
+# (단계 5) 카디널리티 제약 — 모든 여객선은 최소 1건의 검사증서를 보유
+:PassengerShip rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty :hasCertificate ;
+    owl:minCardinality "1"^^xsd:nonNegativeInteger
+] .
+
+# -------------------------------------------------------------
+# [단계 6] 인스턴스(개체) 생성 — ABox
+# -------------------------------------------------------------
+
+# 선종 코드 개체 (AIS ShipType 코드 목록)
+:T_Cargo     a :VesselType ; rdfs:label "화물선(70)" .
+:T_Tanker    a :VesselType ; rdfs:label "유조선(80)" .
+:T_Passenger a :VesselType ; rdfs:label "여객선(60)" .
+
+# 기관
+:MOF     a :Organization ; rdfs:label "해양수산부" .
+:KCG     a :Organization ; rdfs:label "해양경찰청" .
+:BusanRO a :Organization ; rdfs:label "부산지방해양수산청" ; :isPartOf :MOF .
+
+# 장소 계층 (이행적 isLocatedIn 검증용)
+:BusanNewPort_B3 a :Berth ; rdfs:label "부산신항 제3선석" ; :isLocatedIn :BusanPort .
+:BusanNewPort_B7 a :Berth ; rdfs:label "부산신항 제7선석" ; :isLocatedIn :BusanPort .
+:BusanPort a :Port ; rdfs:label "부산항" ; :isLocatedIn :Korea .
+:UlsanPort a :Port ; rdfs:label "울산항" ; :isLocatedIn :Korea .
+:Korea a :Country ; rdfs:label "대한민국" .
+
+# 해역 (대칭 isAdjacentTo 검증용 — 한 방향만 명시)
+:BusanSeaArea a :SeaArea ; rdfs:label "부산항 해역" ;
+    :isAdjacentTo :JinhaeBaySeaArea .
+:JinhaeBaySeaArea a :SeaArea ; rdfs:label "진해만 해역" .
+
+# 법령 계층 (이행적 isPartOf 검증용)
+:MaritimeSafetyAct a :Act ;
+    :hasName "해상교통안전법(예시)"^^xsd:string ;
+    :effectiveDate "2024-01-26"^^xsd:date .
+
+:MaritimeSafetyDecree a :Decree ;
+    :hasName "해상교통안전법 시행령(예시)"^^xsd:string .
+
+:Art15 a :Article ;
+    :hasArticleNo "제15조"^^xsd:string ;
+    :hasName "항로에서의 항법"^^xsd:string ;
+    :isPartOf :MaritimeSafetyAct ;
+    :enforcedBy :MOF ;
+    :appliesTo :T_Cargo ;
+    :junyongOf :Art10 .
+
+:Art15_P1 a :Paragraph ;
+    :hasArticleNo "제15조제1항"^^xsd:string ;
+    :isPartOf :Art15 .
+
+:Art15_P1_I3 a :Item ;
+    :hasArticleNo "제15조제1항제3호"^^xsd:string ;
+    :hasName "항로 안에서의 추월 금지"^^xsd:string ;
+    :isPartOf :Art15_P1 ;
+    :hasProviso "다만, 부득이한 사유로 허가를 받은 경우에는 그러하지 아니하다."^^xsd:string .
+
+:Art15_P2 a :Paragraph ;
+    :hasArticleNo "제15조제2항"^^xsd:string ;
+    :isPartOf :Art15 ;
+    :delegatesTo :MaritimeSafetyDecree .
+
+# 정의 조문
+:Art2 a :Article ;
+    :hasArticleNo "제2조"^^xsd:string ;
+    :hasName "정의"^^xsd:string ;
+    :isPartOf :MaritimeSafetyAct ;
+    :definesTerm :Term_GiantVessel , :Term_Passage .
+
+:Term_GiantVessel a :Term ; rdfs:label "거대선" .
+:Term_Passage     a :Term ; rdfs:label "통항" .
+
+# 준용 연쇄 (이행적 junyongOf + 상위속성 refersTo 검증용): 제43조 → 제15조 → 제10조
+:Art43 a :Article ;
+    :hasArticleNo "제43조"^^xsd:string ;
+    :hasName "예인선의 항법 준용"^^xsd:string ;
+    :isPartOf :MaritimeSafetyAct ;
+    :junyongOf :Art15 .
+
+:Art10 a :Article ;
+    :hasArticleNo "제10조"^^xsd:string ;
+    :hasName "통항의 원칙"^^xsd:string ;
+    :isPartOf :MaritimeSafetyAct .
+
+# 벌칙 조문 (제83조가 제15조 위반을 처벌 → 준용을 통해 제43조까지 연결)
+:Art83 a :Article ;
+    :hasArticleNo "제83조"^^xsd:string ;
+    :hasName "벌칙"^^xsd:string ;
+    :isPartOf :MaritimeSafetyAct ;
+    :enforcedBy :KCG ;
+    :penalizes :Art15 .
+
+# 벌칙 조문 2 (제90조가 제10조 위반을 처벌 — 제43조에서는 '준용 2단계'를 거쳐야
+# 도달하므로, junyongOf 를 이행적으로 선언하지 않으면 이 벌칙이 누락된다.)
+:Art90 a :Article ;
+    :hasArticleNo "제90조"^^xsd:string ;
+    :hasName "과태료"^^xsd:string ;
+    :isPartOf :MaritimeSafetyAct ;
+    :enforcedBy :KCG ;
+    :penalizes :Art10 .
+
+# 선박 1: 화물선 (기국·선종 보유 — 입출항은 확장 절에서 연결)
+:HL_PIONEER a :CargoShip ;
+    :hasName "HL PIONEER"^^xsd:string ;
+    :hasMmsi "440123000"^^xsd:string ;
+    :hasImoNumber "9876543"^^xsd:string ;
+    :hasGrossTonnage "74000"^^xsd:decimal ;
+    :hasVesselType :T_Cargo ;
+    :hasFlagState :Korea .
+
+# 선박 2: 여객선 (카디널리티 제약 충족 — 증서 1건 이상)
+:SEA_QUEEN a :PassengerShip ;
+    :hasName "SEA QUEEN"^^xsd:string ;
+    :hasMmsi "440222000"^^xsd:string ;
+    :hasGrossTonnage "12000"^^xsd:decimal ;
+    :hasVesselType :T_Passenger ;
+    :hasFlagState :Korea ;
+    :hasCertificate :CERT_SQ01 .
+
+:CERT_SQ01 a :Certificate ; rdfs:label "여객선안전검사증서" ;
+    :issuedDate "2025-05-12"^^xsd:date .
+
+# 선박 3: 유조선 (총톤수 5,000 이상 — 역량질문 CQ2 대상)
+:BLUE_WHALE a :Tanker ;
+    :hasName "BLUE WHALE"^^xsd:string ;
+    :hasMmsi "440333000"^^xsd:string ;
+    :hasGrossTonnage "158000"^^xsd:decimal ;
+    :hasVesselType :T_Tanker ;
+    :hasFlagState :Korea .
+
+# 선박 4: 유조선 (총톤수 5,000 미만 — 필터로 제외되는지 검증)
+:OCEAN_STAR a :Tanker ;
+    :hasName "OCEAN STAR"^^xsd:string ;
+    :hasMmsi "440444000"^^xsd:string ;
+    :hasGrossTonnage "3200"^^xsd:decimal ;
+    :hasVesselType :T_Tanker .
+
+# =============================================================
+# [운항 도메인 확장] 법령 중심 온톨로지에 AIS·입출항 데이터 확장
+#  - 추가 클래스: Position(항적) · PortCall(입출항) · GridCell(격자셀)
+#  - 추가 속성: reportedPosition · hasPortCall · atPort · inCell ·
+#              observedAt · ingestedAt · latitude · longitude · callType
+#  - 추가 인스턴스: 부산항 입출항 이벤트 · AIS 항적 · 0.5도 격자
+# =============================================================
+
+# [단계 4] 운항 관련 클래스 추가
+:Position a owl:Class ; rdfs:label "항적 포인트" .
+:PortCall a owl:Class ; rdfs:label "입출항 이벤트" .
+:GridCell a owl:Class ; rdfs:label "격자 셀" .
+
+# [단계 4·5] 운항 관련 속성 추가
+:reportedPosition a owl:ObjectProperty ;
+    rdfs:label "항적 보고" ;
+    rdfs:domain :Vessel ; rdfs:range :Position .
+
+:hasPortCall a owl:ObjectProperty ;
+    rdfs:label "입출항 이벤트" ;
+    rdfs:domain :Vessel ; rdfs:range :PortCall .
+
+:atPort a owl:ObjectProperty ;
+    rdfs:label "대상 항만" ;
+    rdfs:domain :PortCall ; rdfs:range :Port .
+
+:atBerth a owl:ObjectProperty ;
+    rdfs:label "접안 선석" ;
+    rdfs:domain :PortCall ; rdfs:range :Berth .
+
+:inCell a owl:ObjectProperty ;
+    rdfs:label "소속 격자" ;
+    rdfs:domain :Position ; rdfs:range :GridCell .
+
+# 관측시각(observedAt)과 적재시각(ingestedAt)을 분리해
+# "그 값이 언제의 것인가"를 항상 보존한다.
+:observedAt a owl:DatatypeProperty ;
+    rdfs:label "관측 시각(UTC)" ;
+    rdfs:range xsd:dateTime .
+
+:ingestedAt a owl:DatatypeProperty ;
+    rdfs:label "적재 시각(UTC)" ;
+    rdfs:range xsd:dateTime .
+
+:latitude a owl:DatatypeProperty ;
+    rdfs:label "위도" ;
+    rdfs:domain :Position ; rdfs:range xsd:decimal .
+
+:longitude a owl:DatatypeProperty ;
+    rdfs:label "경도" ;
+    rdfs:domain :Position ; rdfs:range xsd:decimal .
+
+:callType a owl:DatatypeProperty ;
+    rdfs:label "입출항 구분" ;
+    rdfs:domain :PortCall ; rdfs:range xsd:string .
+
+# [단계 6] 운항 인스턴스 (ABox)
+:G_35N_129E a :GridCell ; rdfs:label "격자 35.0N 129.0E (0.5도)" ;
+    :isLocatedIn :BusanSeaArea .
+
+:POS_HL_001 a :Position ;
+    :latitude "35.0821"^^xsd:decimal ;
+    :longitude "129.0412"^^xsd:decimal ;
+    :observedAt "2026-03-11T08:14:00Z"^^xsd:dateTime ;
+    :ingestedAt "2026-03-11T08:15:22Z"^^xsd:dateTime ;
+    :inCell :G_35N_129E .
+
+:POS_SQ_001 a :Position ;
+    :latitude "35.0913"^^xsd:decimal ;
+    :longitude "129.0355"^^xsd:decimal ;
+    :observedAt "2026-03-11T09:02:00Z"^^xsd:dateTime ;
+    :ingestedAt "2026-03-11T09:03:10Z"^^xsd:dateTime ;
+    :inCell :G_35N_129E .
+
+:PC_HL_001 a :PortCall ; rdfs:label "HL PIONEER 부산항 입항" ;
+    :callType "입항"^^xsd:string ;
+    :observedAt "2026-03-11T08:20:00Z"^^xsd:dateTime ;
+    :atPort :BusanPort ;
+    :atBerth :BusanNewPort_B3 .
+
+:PC_SQ_001 a :PortCall ; rdfs:label "SEA QUEEN 부산항 입항" ;
+    :callType "입항"^^xsd:string ;
+    :observedAt "2026-03-11T09:10:00Z"^^xsd:dateTime ;
+    :atPort :BusanPort ;
+    :atBerth :BusanNewPort_B7 .
+
+:PC_BW_001 a :PortCall ; rdfs:label "BLUE WHALE 울산항 입항" ;
+    :callType "입항"^^xsd:string ;
+    :observedAt "2026-03-11T11:40:00Z"^^xsd:dateTime ;
+    :atPort :UlsanPort .
+
+:HL_PIONEER :reportedPosition :POS_HL_001 ; :hasPortCall :PC_HL_001 .
+:SEA_QUEEN  :reportedPosition :POS_SQ_001 ; :hasPortCall :PC_SQ_001 .
+:BLUE_WHALE :hasPortCall :PC_BW_001 .
